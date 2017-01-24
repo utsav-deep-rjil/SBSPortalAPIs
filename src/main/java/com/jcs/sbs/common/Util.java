@@ -9,7 +9,6 @@ import com.jcs.sbs.service.CommonService;
 import com.jcs.sbs.service.impl.AccountServiceImpl;
 import com.jcs.sbs.service.impl.SnapshotServiceImpl;
 import com.jcs.sbs.service.impl.VolumeServiceImpl;
-
 public class Util {
 
     public static CommonService getService(String queryType) {
