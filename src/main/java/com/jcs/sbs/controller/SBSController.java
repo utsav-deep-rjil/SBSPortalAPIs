@@ -1,9 +1,7 @@
 package com.jcs.sbs.controller;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -23,7 +21,7 @@ import com.jcs.sbs.service.CommonService;
 
 @Path("/sbs")
 public class SBSController {
-    
+
     @GET
     @Produces("application/json")
     public Response getResult(@QueryParam("queryType") String queryType, @QueryParam("search") String search,
@@ -34,12 +32,12 @@ public class SBSController {
 
             Gson gson = new Gson();
             String queryParams = gson.toJson(uriInfo.getQueryParameters());
-            
+
             String cachedData = Cache.getData(queryParams);
-            if(Cache.getData(queryParams)!=null){
+            if (Cache.getData(queryParams) != null) {
                 return Response.status(200).entity(cachedData).build();
             }
-            
+
             CommonService service = Util.getService(queryType);
             if (service == null) {
                 return Response.status(400).entity("Invalid queryType").build();
@@ -48,9 +46,15 @@ public class SBSController {
             if (search == null) {
                 search = "";
             }
-            CommonResponse result = new CommonResponse();
-            result.setTableHeaders(Util.getTableHeaders(queryType));
-            result.setKeys(new ArrayList<>(result.getTableHeaders().keySet()));
+
+            if (search.length() > 0 && Util.isFieldBoolean(queryType, filter)) {
+                if ("true".contains(search)) {
+                    search = "1";
+                } else if ("false".contains(search)) {
+                    search = "0";
+                }
+            }
+
 
             if (sortBy == null) {
                 switch (queryType) {
@@ -63,10 +67,26 @@ public class SBSController {
                     break;
                 }
             }
-            System.out.println(optionalParams.toString());
-            result.setTableData(service.getResult(search, sortBy, sortDirection, offset, limit, filter,optionalParams));
-            result.setTotalResults(service.getTotalResultCount(search, filter, optionalParams).getTotalResults());
-
+            
+            final String like = search, orderBy = sortBy;
+            CommonResponse result = new CommonResponse();
+            Thread t1 = new Thread(new Runnable() {
+                public void run() {
+                    result.setTableData(
+                            service.getResult(like, orderBy, sortDirection, offset, limit, filter, optionalParams));
+                }
+            });
+            t1.start();
+            Thread t2 = new Thread(new Runnable() {
+                public void run() {
+                    result.setTableHeaders(Util.getTableHeaders(queryType));
+                    result.setKeys(new ArrayList<>(result.getTableHeaders().keySet()));
+                    result.setTotalResults(service.getTotalResultCount(like, filter, optionalParams).getTotalResults());
+                }
+            });
+            t2.start();
+            t1.join();
+            t2.join();
             String output = gson.toJson(result);
             Cache.insert(queryParams, output);
             return Response.status(200).entity(output).build();
