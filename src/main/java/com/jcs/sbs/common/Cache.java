@@ -8,7 +8,7 @@ public class Cache {
     private static Map<String, String> cachedData = new HashMap<>();
     private static Map<String, Long> lastUpdated = new HashMap<>();
 
-    private static long maxAge = 120000;
+    private static long maxAge = 60000;
     private static int maxCacheSize = 100000;
 
     public static long getMaxAge() {
